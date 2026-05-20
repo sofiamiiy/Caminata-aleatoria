@@ -1,0 +1,773 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyMvNUscM+sX6ecagTgcH3qT",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/sofiamiiy/Caminata-aleatoria/blob/main/Serpientes%20y%20rat%C3%B3n%20\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "\"Serpientes y escaleras\"\n",
+        "\n",
+        "El juego incluye cambios tales como:\n",
+        "\n",
+        "Escaleras: 3 → 11; 15 → 19\n",
+        "\n",
+        "Serpientes: 13 → 4; 17 → 10\n",
+        "\n",
+        "Se usa un dado de 6 caras"
+      ],
+      "metadata": {
+        "id": "IUWXwE7EhPbT"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Modelo probabilístico\n",
+        "\n",
+        "Sea \\(X_n\\) la posición del jugador después de la tirada \\(n\\).\n",
+        "\n",
+        "La cadena de Markov cumple:\n",
+        "\n",
+        "$$\n",
+        "P_{ij} = P(X_{n+1}=j \\mid X_n=i)\n",
+        "$$\n",
+        "\n",
+        "donde:\n",
+        "\n",
+        "- \\(i\\) representa la casilla actual.\n",
+        "- \\(j\\) representa la siguiente casilla.\n",
+        "- \\(P_{ij}\\) es la probabilidad de transición entre estados.\n",
+        "\n",
+        "Como el dado es justo:\n",
+        "\n",
+        "$$\n",
+        "P(\\text{avanzar } k \\text{ casillas}) = \\frac{1}{6}\n",
+        "$$\n",
+        "\n",
+        "para:\n",
+        "\n",
+        "$$\n",
+        "k \\in \\{1,2,3,4,5,6\\}\n",
+        "$$"
+      ],
+      "metadata": {
+        "id": "9tgcQxxqr7b8"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Importar librerías y crear tablero\n",
+        "import random\n",
+        "import numpy as np\n",
+        "import sympy as sp\n",
+        "from sympy import Matrix, Rational\n",
+        "\n",
+        "cambios = {\n",
+        "    3: 11,   # escalera\n",
+        "    15: 19,  # escalera\n",
+        "    13: 4,   # serpiente\n",
+        "    17: 10   # serpiente\n",
+        "}\n",
+        "\n",
+        "N = 20  # número de casillas"
+      ],
+      "metadata": {
+        "id": "qNAAR1SomCcU"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Matriz de transición\n",
+        "\n",
+        "Construimos la matriz de transición \\(P\\).\n",
+        "\n",
+        "Cada entrada de la matriz representa la probabilidad de pasar de una casilla a otra en una sola tirada.\n",
+        "\n",
+        "La matriz tiene la forma:\n",
+        "\n",
+        "$$\n",
+        "P =\n",
+        "\\begin{pmatrix}\n",
+        "P_{11} & P_{12} & \\cdots & P_{1n} \\\\\n",
+        "P_{21} & P_{22} & \\cdots & P_{2n} \\\\\n",
+        "\\vdots & \\vdots & \\ddots & \\vdots \\\\\n",
+        "P_{n1} & P_{n2} & \\cdots & P_{nn}\n",
+        "\\end{pmatrix}\n",
+        "$$\n",
+        "\n",
+        "La casilla 20 es absorbente, por lo que:\n",
+        "\n",
+        "$$\n",
+        "P_{20,20}=1\n",
+        "$$"
+      ],
+      "metadata": {
+        "id": "9DrlEoBOmjHc"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Crear matriz de transición vacía\n",
+        "P = sp.zeros(N, N)\n",
+        "\n",
+        "for i in range(N):\n",
+        "\n",
+        "    # Estado final absorbente\n",
+        "    if i == N - 1:\n",
+        "        P[i, i] = 1\n",
+        "        continue\n",
+        "\n",
+        "    # Posición real en tablero (1-20)\n",
+        "    posicion = i + 1\n",
+        "\n",
+        "    for dado in range(1, 7):\n",
+        "\n",
+        "        nueva = posicion + dado\n",
+        "\n",
+        "        # Si se pasa de 20, permanece en 20\n",
+        "        if nueva > N:\n",
+        "            nueva = N\n",
+        "\n",
+        "        # Aplicar serpientes y escaleras\n",
+        "        if nueva in cambios:\n",
+        "            nueva = cambios[nueva]\n",
+        "\n",
+        "        # Convertir a índice\n",
+        "        j = nueva - 1\n",
+        "\n",
+        "        P[i, j] += Rational(1, 6)\n",
+        "\n",
+        "P"
+      ],
+      "metadata": {
+        "id": "-EXyx1DJmpPM"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Cadena de Markov absorbente\n",
+        "\n",
+        "La matriz de transición puede escribirse como:\n",
+        "\n",
+        "$$\n",
+        "P =\n",
+        "\\begin{pmatrix}\n",
+        "Q & R \\\\\n",
+        "0 & I\n",
+        "\\end{pmatrix}\n",
+        "$$\n",
+        "\n",
+        "donde:\n",
+        "\n",
+        "- \\(Q\\) probabilidades entre estados transientes.\n",
+        "- \\(R\\) probabilidades hacia estados absorbentes.\n",
+        "- \\(I\\) representa el estado absorbente.\n",
+        "\n",
+        "Para calcular el número esperado de tiradas se utiliza la matriz fundamental:\n",
+        "\n",
+        "$$\n",
+        "F = (I-Q)^{-1}\n",
+        "$$"
+      ],
+      "metadata": {
+        "id": "zeBzG75tmx7r"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Matriz Q (todos menos el estado absorbente)\n",
+        "Q = P[:N-1, :N-1]\n",
+        "\n",
+        "# Matriz identidad\n",
+        "I = sp.eye(N-1)\n",
+        "\n",
+        "# Matriz fundamental\n",
+        "F = (I - Q).inv()\n",
+        "\n",
+        "F"
+      ],
+      "metadata": {
+        "id": "Lz_7LUkGm0dn"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Tiempo esperado de absorción\n",
+        "\n",
+        "El vector de tiempos esperados se calcula mediante:\n",
+        "\n",
+        "$$\n",
+        "t = F\\mathbf{1}\n",
+        "$$\n",
+        "\n",
+        "donde:\n",
+        "\n",
+        "$$\n",
+        "\\mathbf{1} =\n",
+        "\\begin{pmatrix}\n",
+        "1 \\\\\n",
+        "1 \\\\\n",
+        "\\vdots \\\\\n",
+        "1\n",
+        "\\end{pmatrix}\n",
+        "$$\n",
+        "\n",
+        "Cada entrada \\(t_i\\) representa el número esperado de tiradas para llegar a la casilla final iniciando desde el estado \\(i\\)."
+      ],
+      "metadata": {
+        "id": "i6htUs69m-A5"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Vector de unos\n",
+        "unos = sp.ones(N-1, 1)\n",
+        "\n",
+        "# Tiempos esperados\n",
+        "t = F * unos\n",
+        "\n",
+        "t\n",
+        "\n",
+        "#Numero promedio de tiradas desde la casila 1\n",
+        "esperanza = sp.N(t[0], 6)\n",
+        "\n",
+        "print(\"Número promedio de tiradas para terminar el juego:\")\n",
+        "print(esperanza)\n",
+        "\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "paHgMYU2nAeK"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Simulación Monte Carlo\n",
+        "\n",
+        "Ahora realizamos una simulación del juego para aproximar experimentalmente el número promedio de tiradas.\n",
+        "\n",
+        "La idea consiste en:\n",
+        "\n",
+        "1. Simular muchas partidas.\n",
+        "2. Contar el número de tiradas en cada partida.\n",
+        "3. Calcular el promedio experimental."
+      ],
+      "metadata": {
+        "id": "K6UAnOgdwqp2"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def jugar():\n",
+        "\n",
+        "    posicion = 1\n",
+        "    tiradas = 0\n",
+        "\n",
+        "    while posicion < 20:\n",
+        "\n",
+        "        dado = random.randint(1, 6)\n",
+        "        posicion += dado\n",
+        "\n",
+        "        if posicion > 20:\n",
+        "            posicion = 20\n",
+        "\n",
+        "        # Aplicar serpientes y escaleras\n",
+        "        if posicion in cambios:\n",
+        "            posicion = cambios[posicion]\n",
+        "\n",
+        "        tiradas += 1\n",
+        "    return tiradas\n",
+        "\n",
+        "    #Ejecutar simulaciones\n",
+        "\n",
+        "  num_simulaciones = 100000\n",
+        "\n",
+        "resultados = [jugar() for _ in range(num_simulaciones)]\n",
+        "\n",
+        "promedio_simulado = np.mean(resultados)\n",
+        "\n",
+        "print(\"Promedio simulado de tiradas:\")\n",
+        "print(promedio_simulado)\n"
+      ],
+      "metadata": {
+        "id": "F__4pN4rokR7"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Conclusión\n",
+        "\n",
+        "Se modeló el juego mediante cadenas de Markov.\n",
+        "\n",
+        "Las ecuaciones principales utilizadas fueron:\n",
+        "\n",
+        "$$\n",
+        "P_{ij} = P(X_{n+1}=j \\mid X_n=i)\n",
+        "$$\n",
+        "\n",
+        "$$\n",
+        "F = (I-Q)^{-1}\n",
+        "$$\n",
+        "\n",
+        "$$\n",
+        "t = F\\mathbf{1}\n",
+        "$$\n",
+        "\n",
+        "El valor teórico obtenido mediante álgebra matricial puede compararse con el promedio obtenido experimentalmente usando simulación Monte Carlo."
+      ],
+      "metadata": {
+        "id": "OVfGbunLooFW"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Ratón buscando comida\n",
+        "\n",
+        "Modelaremos el movimiento aleatorio de un ratón en un tablero 3x3 usando una cadena de Markov.\n",
+        "\n",
+        "\n",
+        "$$\n",
+        "\\begin{matrix}\n",
+        "0 & 1 & 7 \\\\\n",
+        "2 & 3 & 4 \\\\\n",
+        "8 & 5 & 6\n",
+        "\\end{matrix}\n",
+        "$$\n",
+        "\n",
+        "donde:\n",
+        "\n",
+        "- La casilla \\(7\\) contiene comida.\n",
+        "- La casilla \\(8\\) contiene una trampa.\n",
+        "\n",
+        "\n",
+        "# Modelo probabilístico\n",
+        "\n",
+        "Sea \\(X_n\\) la posición del ratón después del movimiento \\(n\\).\n",
+        "\n",
+        "La cadena de Markov satisface:\n",
+        "\n",
+        "$$\n",
+        "P_{ij} = P(X_{n+1}=j \\mid X_n=i)\n",
+        "$$\n",
+        "\n",
+        "donde:\n",
+        "\n",
+        "- \\(i\\) es la casilla actual.\n",
+        "- \\(j\\) es la casilla siguiente.\n",
+        "\n",
+        "En cada paso el ratón elige una casilla vecina válida.\n",
+        "\n",
+        "#Importar librerías y definir tablero"
+      ],
+      "metadata": {
+        "id": "cxtvL3qGwSYU"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import random\n",
+        "import numpy as np\n",
+        "import sympy as sp\n",
+        "from sympy import Matrix, Rational\n",
+        "\n",
+        "# Tablero\n",
+        "tablero = [\n",
+        "    [0, 1, 7],\n",
+        "    [2, 3, 4],\n",
+        "    [8, 5, 6]\n",
+        "]\n",
+        "\n",
+        "# Estados absorbentes\n",
+        "comida = 7\n",
+        "trampa = 8\n",
+        "\n",
+        "# Coordenadas de cada estado\n",
+        "posiciones = {\n",
+        "    0:(0,0),\n",
+        "    1:(0,1),\n",
+        "    7:(0,2),\n",
+        "    2:(1,0),\n",
+        "    3:(1,1),\n",
+        "    4:(1,2),\n",
+        "    8:(2,0),\n",
+        "    5:(2,1),\n",
+        "    6:(2,2)\n",
+        "}\n",
+        "\n",
+        "estados = [0,1,2,3,4,5,6,7,8]\n",
+        "\n",
+        "N = len(estados)"
+      ],
+      "metadata": {
+        "id": "SbZMkXmKw9Vl"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Movimientos posibles\n",
+        "\n",
+        "El ratón puede moverse únicamente hacia:\n",
+        "\n",
+        "arriba, abajo, izquierda, derecha\n",
+        "\n",
+        "siempre que la casilla exista dentro del tablero.\n",
+        "\n",
+        "La probabilidad de transición depende del número de vecinos disponibles."
+      ],
+      "metadata": {
+        "id": "IhrU3RiRxdfI"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#definir estados vecinos\n",
+        "def vecinos(estado):\n",
+        "\n",
+        "    fila, col = posiciones[estado]\n",
+        "\n",
+        "    movimientos = [\n",
+        "        (-1,0),  # arriba\n",
+        "        (1,0),   # abajo\n",
+        "        (0,-1),  # izquierda\n",
+        "        (0,1)    # derecha\n",
+        "    ]\n",
+        "\n",
+        "    resultado = []\n",
+        "\n",
+        "    for df, dc in movimientos:\n",
+        "\n",
+        "        nf = fila + df\n",
+        "        nc = col + dc\n",
+        "\n",
+        "        if 0 <= nf < 3 and 0 <= nc < 3:\n",
+        "            resultado.append(tablero[nf][nc])\n",
+        "\n",
+        "    return resultado"
+      ],
+      "metadata": {
+        "id": "eaM7jy52xvyT"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Construcción de la matriz de transición\n",
+        "\n",
+        "La matriz de transición tiene la forma:\n",
+        "\n",
+        "$$\n",
+        "P =\n",
+        "\\begin{pmatrix}\n",
+        "P_{11} & P_{12} & \\cdots & P_{1n} \\\\\n",
+        "P_{21} & P_{22} & \\cdots & P_{2n} \\\\\n",
+        "\\vdots & \\vdots & \\ddots & \\vdots \\\\\n",
+        "P_{n1} & P_{n2} & \\cdots & P_{nn}\n",
+        "\\end{pmatrix}\n",
+        "$$\n",
+        "\n",
+        "Los estados \\(7\\) y \\(8\\) son absorbentes:\n",
+        "\n",
+        "$$\n",
+        "P_{77}=1\n",
+        "$$\n",
+        "\n",
+        "$$\n",
+        "P_{88}=1\n",
+        "$$"
+      ],
+      "metadata": {
+        "id": "Rn-4Acyjx2hx"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Matriz de transición\n",
+        "P = sp.zeros(N, N)\n",
+        "\n",
+        "for i, estado in enumerate(estados):\n",
+        "\n",
+        "    # Estados absorbentes\n",
+        "    if estado in [7,8]:\n",
+        "        P[i,i] = 1\n",
+        "        continue\n",
+        "\n",
+        "    vecinos_estado = vecinos(estado)\n",
+        "\n",
+        "    prob = Rational(1, len(vecinos_estado))\n",
+        "\n",
+        "    for v in vecinos_estado:\n",
+        "\n",
+        "        j = estados.index(v)\n",
+        "\n",
+        "        P[i,j] += prob\n",
+        "\n",
+        "P"
+      ],
+      "metadata": {
+        "id": "Ssu2CIA-x5Hn"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Cadena absorbente\n",
+        "\n",
+        "La matriz puede escribirse como:\n",
+        "\n",
+        "$$\n",
+        "P =\n",
+        "\\begin{pmatrix}\n",
+        "Q & R \\\\\n",
+        "0 & I\n",
+        "\\end{pmatrix}\n",
+        "$$\n",
+        "\n",
+        "donde:\n",
+        "\n",
+        "\\(Q\\): transiciones entre estados transientes.\n",
+        "\n",
+        "\\(R\\): transiciones hacia estados absorbentes.\n",
+        "\n",
+        "La matriz fundamental es:\n",
+        "\n",
+        "$$\n",
+        "F = (I-Q)^{-1}\n",
+        "$$\n",
+        "\n",
+        "y permite calcular:\n",
+        "\n",
+        "- tiempos esperados,\n",
+        "- probabilidades de absorción."
+      ],
+      "metadata": {
+        "id": "M2wWF_ZjyEW6"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Estados transientes\n",
+        "transientes = [0,1,2,3,4,5,6]\n",
+        "\n",
+        "# Índices\n",
+        "idx_trans = [estados.index(x) for x in transientes]\n",
+        "\n",
+        "# Submatriz Q\n",
+        "Q = P.extract(idx_trans, idx_trans)\n",
+        "\n",
+        "# Identidad\n",
+        "I = sp.eye(len(Q))\n",
+        "\n",
+        "# Matriz fundamental\n",
+        "F = (I - Q).inv()\n",
+        "\n",
+        "F"
+      ],
+      "metadata": {
+        "id": "8GusALj5ySvz"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Tiempo esperado hasta absorción\n",
+        "\n",
+        "El vector de tiempos esperados se calcula mediante:\n",
+        "\n",
+        "$$\n",
+        "t = F\\mathbf{1}\n",
+        "$$\n"
+      ],
+      "metadata": {
+        "id": "PKvAyayDyazA"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Vector de unos\n",
+        "unos = sp.ones(len(Q),1)\n",
+        "\n",
+        "# Tiempos esperados\n",
+        "t = F * unos\n",
+        "\n",
+        "t"
+      ],
+      "metadata": {
+        "id": "Bq7C8eduyV1_"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Probabilidades de llegar a la comida o la trampa\n",
+        "\n",
+        "Las probabilidades de absorción se calculan mediante:\n",
+        "\n",
+        "$$\n",
+        "B = FR\n",
+        "$$\n",
+        "\n",
+        "donde:\n",
+        "\n",
+        "- \\(F\\) es la matriz fundamental.\n",
+        "- \\(R\\) contiene las transiciones hacia estados absorbentes.\n",
+        "\n",
+        "Cada entrada de \\(B\\) representa la probabilidad de terminar en un estado absorbente específico."
+      ],
+      "metadata": {
+        "id": "FmxZRPTrylhJ"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Índices absorbentes\n",
+        "idx_abs = [estados.index(7), estados.index(8)]\n",
+        "\n",
+        "# Matriz R\n",
+        "R = P.extract(idx_trans, idx_abs)\n",
+        "\n",
+        "# Probabilidades de absorción\n",
+        "B = F * R\n",
+        "\n",
+        "B"
+      ],
+      "metadata": {
+        "id": "Eh2FgjRmyrvr"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Simulación Monte Carlo\n",
+        "\n",
+        "Ahora simularemos muchas trayectorias aleatorias del ratón para comparar los resultados teóricos con resultados experimentales."
+      ],
+      "metadata": {
+        "id": "picY5Lsuywx5"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def simular():\n",
+        "\n",
+        "    estado = 0\n",
+        "    pasos = 0\n",
+        "\n",
+        "    while estado not in [7,8]:\n",
+        "\n",
+        "        estado = random.choice(vecinos(estado))\n",
+        "\n",
+        "        pasos += 1\n",
+        "\n",
+        "    return estado, pasos\n",
+        "\n",
+        "    num_simulaciones = 100000\n",
+        "\n",
+        "comida_count = 0\n",
+        "trampa_count = 0\n",
+        "pasos_totales = 0\n",
+        "\n",
+        "for _ in range(num_simulaciones):\n",
+        "\n",
+        "    estado_final, pasos = simular()\n",
+        "\n",
+        "    pasos_totales += pasos\n",
+        "\n",
+        "    if estado_final == 7:\n",
+        "        comida_count += 1\n",
+        "    else:\n",
+        "        trampa_count += 1\n",
+        "\n",
+        "print(\"Probabilidad de llegar a comida:\")\n",
+        "print(comida_count / num_simulaciones)\n",
+        "\n",
+        "print()\n",
+        "\n",
+        "print(\"Probabilidad de caer en trampa:\")\n",
+        "print(trampa_count / num_simulaciones)\n",
+        "\n",
+        "print()\n",
+        "\n",
+        "print(\"Promedio de pasos:\")\n",
+        "print(pasos_totales / num_simulaciones)\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "Ju2mSYVXy0Yk"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [],
+      "metadata": {
+        "id": "7hMwfJ_RyVl4"
+      }
+    }
+  ]
+}
